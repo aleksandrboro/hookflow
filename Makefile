@@ -1,8 +1,8 @@
-.PHONY start:
+.PHONY:
 start:
 	go run cmd/main.go -config=config/local.yaml
 
-.PHONY test:
+.PHONY:
 test:
 	go test -v -race -timeout 30s ./...
 

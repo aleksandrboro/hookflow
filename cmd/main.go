@@ -22,9 +22,9 @@ const (
 )
 
 func main() {
-	log := setupLogger(levelInfo)
-
 	cfg := config.MustLoad()
+
+	log := setupLogger(cfg.LogLevel)
 
 	log.Info("config", slog.Any("cfg", cfg))
 
@@ -46,6 +46,7 @@ func main() {
 	go func() {
 		if err := server.Start(); err != nil {
 			log.Error("failed to start server", slog.String("error", err.Error()))
+			os.Exit(1)
 		}
 	}()
 

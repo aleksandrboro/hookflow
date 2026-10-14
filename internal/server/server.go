@@ -18,9 +18,9 @@ type Server struct {
 }
 
 func NewServer(log *slog.Logger, cfg config.ServerCfg, handler http.Handler) (*Server, error) {
-	// if handler == nil {
-	// 	return nil, errors.New("HTTP handler is required")
-	// }
+	if handler == nil {
+		return nil, errors.New("HTTP handler is required")
+	}
 
 	addr := strings.TrimSpace(cfg.Addr)
 	if addr == "" {
