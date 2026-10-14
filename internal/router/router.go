@@ -3,14 +3,12 @@ package router
 import (
 	"net/http"
 
-	"github.com/aleksandrboro/hookflow/internal/job"
+	"github.com/aleksandrboro/hookflow/internal/handler"
 	"github.com/gorilla/mux"
 )
 
-func NewRouter() *mux.Router {
+func NewRouter(h *handler.JobHandler) *mux.Router {
 	r := mux.NewRouter()
-
-	h := job.NewJobHandler()
 
 	r.HandleFunc("/", h.CreateJob).Methods("POST")
 	r.HandleFunc("/{job_id}", h.GetJob).Methods("GET")

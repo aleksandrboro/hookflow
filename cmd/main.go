@@ -8,7 +8,11 @@ import (
 	"syscall"
 
 	"github.com/aleksandrboro/hookflow/internal/config"
+	"github.com/aleksandrboro/hookflow/internal/handler"
+	"github.com/aleksandrboro/hookflow/internal/router"
 	"github.com/aleksandrboro/hookflow/internal/server"
+	"github.com/aleksandrboro/hookflow/internal/service"
+	"github.com/aleksandrboro/hookflow/internal/storage"
 )
 
 const (
@@ -24,7 +28,15 @@ func main() {
 
 	log.Info("config", slog.Any("cfg", cfg))
 
-	server, err := server.NewServer(log, cfg.Server, nil)
+	store := storage.NewStore()
+
+	service := service.NewJobService(store)
+
+	handler := handler.NewJobHandler(service)
+
+	router := router.NewRouter(handler)
+
+	server, err := server.NewServer(log, cfg.Server, router)
 	if err != nil {
 		panic(err)
 	}
