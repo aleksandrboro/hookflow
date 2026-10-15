@@ -10,10 +10,10 @@ import (
 func NewRouter(h *handler.JobHandler) *mux.Router {
 	r := mux.NewRouter()
 
-	r.HandleFunc("/v1/jobs", h.CreateJob).Methods(http.MethodPost)
-	r.HandleFunc("/v1/jobs/{job_id}", h.GetJob).Methods(http.MethodGet)
-	r.HandleFunc("/v1/jobs/{job_id}/attempts", h.GetAttempts).Methods(http.MethodGet)
-	r.HandleFunc("/v1/jobs/{job_id}/cancel", h.CancelJob).Methods(http.MethodPost)
+	r.HandleFunc("/v1/jobs", h.HandleCreateJob).Methods(http.MethodPost)
+	r.HandleFunc("/v1/jobs/{job_id}", h.HandleGetJob).Methods(http.MethodGet)
+	r.HandleFunc("/v1/jobs/{job_id}/attempts", h.HandleGetAttempts).Methods(http.MethodGet)
+	r.HandleFunc("/v1/jobs/{job_id}/cancel", h.HandleCancelJob).Methods(http.MethodPost)
 
 	return r
 }

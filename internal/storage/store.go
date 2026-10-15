@@ -1,29 +1,33 @@
 package storage
 
-import "github.com/aleksandrboro/hookflow/internal/models"
+import (
+	"context"
+
+	"github.com/aleksandrboro/hookflow/internal/domain"
+)
 
 type Storage struct {
-	data []models.Job
+	data []domain.Job
 }
 
 func NewStore() *Storage {
 	return &Storage{
-		data: make([]models.Job, 20),
+		data: make([]domain.Job, 0, 20),
 	}
 }
 
-func (s *Storage) SaveJob(job models.Job) (int, error) {
-	return 0, nil
+func (s *Storage) SaveJob(ctx context.Context, job domain.Job) (string, error) {
+	return "", nil
 }
 
-func (s *Storage) GetJob(jobID int) (*models.Job, error) {
+func (s *Storage) GetJob(ctx context.Context, jobID string) (*domain.Job, error) {
 	return nil, nil
 }
 
-func (s *Storage) GetAttempts(jobID int) ([]models.Attempt, error) {
+func (s *Storage) GetAttempts(ctx context.Context, jobID string) ([]domain.Attempt, error) {
 	return nil, nil
 }
 
-func (s *Storage) CancelJob(jobID int) error {
+func (s *Storage) CancelJob(ctx context.Context, jobID string) error {
 	return nil
 }

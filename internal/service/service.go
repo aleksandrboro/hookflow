@@ -1,16 +1,21 @@
 package service
 
-import "github.com/aleksandrboro/hookflow/internal/models"
+import (
+	"context"
+
+	"github.com/aleksandrboro/hookflow/internal/domain"
+	"github.com/aleksandrboro/hookflow/internal/handler"
+)
 
 type JobService struct {
 	store Store
 }
 
 type Store interface {
-	SaveJob(models.Job) (int, error)
-	GetJob(int) (*models.Job, error)
-	GetAttempts(int) ([]models.Attempt, error)
-	CancelJob(int) error
+	SaveJob(context.Context, domain.Job) (string, error)
+	GetJob(context.Context, string) (*domain.Job, error)
+	GetAttempts(context.Context, string) ([]domain.Attempt, error)
+	CancelJob(context.Context, string) error
 }
 
 func NewJobService(store Store) *JobService {
@@ -19,18 +24,18 @@ func NewJobService(store Store) *JobService {
 	}
 }
 
-func (s *JobService) CreateJob(url string) (int, error) {
-	return 0, nil
+func (s *JobService) CreateJob(ctx context.Context, req handler.CreateJobRequest) (string, error) {
+	return "", nil
 }
 
-func (s *JobService) GetJob(jobID int) (*models.Job, error) {
+func (s *JobService) GetJob(ctx context.Context, jobID string) (*domain.Job, error) {
 	return nil, nil
 }
 
-func (s *JobService) GetAttempts(jobID int) ([]models.Attempt, error) {
+func (s *JobService) GetAttempts(ctx context.Context, jobID string) ([]domain.Attempt, error) {
 	return nil, nil
 }
 
-func (s *JobService) CancelJob(jobID int) error {
+func (s *JobService) CancelJob(ctx context.Context, jobID string) error {
 	return nil
 }
