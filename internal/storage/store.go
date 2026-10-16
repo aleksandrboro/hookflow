@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 
 	"github.com/aleksandrboro/hookflow/internal/domain"
 )
@@ -17,17 +18,17 @@ func NewStore() *Storage {
 }
 
 func (s *Storage) SaveJob(ctx context.Context, job domain.Job) (string, error) {
-	return "", nil
+	return "", errors.New("Unimplemented")
 }
 
 func (s *Storage) GetJob(ctx context.Context, jobID string) (*domain.Job, error) {
-	return nil, nil
+	return nil, errors.New("Unimplemented")
 }
 
 func (s *Storage) GetAttempts(ctx context.Context, jobID string) ([]domain.Attempt, error) {
-	return nil, nil
+	return nil, errors.New("Unimplemented")
 }
 
 func (s *Storage) CancelJob(ctx context.Context, jobID string) error {
-	return nil
+	return errors.New("Unimplemented")
 }

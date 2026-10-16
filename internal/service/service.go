@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 
 	"github.com/aleksandrboro/hookflow/internal/domain"
 	"github.com/aleksandrboro/hookflow/internal/handler"
@@ -25,17 +26,17 @@ func NewJobService(store Store) *JobService {
 }
 
 func (s *JobService) CreateJob(ctx context.Context, req handler.CreateJobRequest) (string, error) {
-	return "", nil
+	return "", errors.New("Unimplemented")
 }
 
 func (s *JobService) GetJob(ctx context.Context, jobID string) (*domain.Job, error) {
-	return nil, nil
+	return nil, errors.New("Unimplemented")
 }
 
 func (s *JobService) GetAttempts(ctx context.Context, jobID string) ([]domain.Attempt, error) {
-	return nil, nil
+	return nil, errors.New("Unimplemented")
 }
 
 func (s *JobService) CancelJob(ctx context.Context, jobID string) error {
-	return nil
+	return errors.New("Unimplemented")
 }
