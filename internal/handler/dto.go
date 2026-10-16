@@ -8,10 +8,10 @@ import (
 )
 
 type CreateJobRequest struct {
-	URL         string          `json:""`
+	URL         string          `json:"url"`
 	Payload     json.RawMessage `json:"payload"`
 	RunAt       time.Time       `json:"run_at,omitzero"`
-	MaxAttempts string          `json:"max_attempts,omitempty"`
+	MaxAttempts int             `json:"max_attempts,omitempty"`
 }
 
 type JobResponse struct {
@@ -32,4 +32,9 @@ type Attempt struct {
 	StartedAt        time.Time `json:"started_at"`
 	FinishedAt       time.Time `json:"finished_at"`
 	ErrorDescription string    `json:"error_description"`
+}
+
+type ErrorMessage struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
 }
