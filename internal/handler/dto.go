@@ -20,3 +20,16 @@ type JobResponse struct {
 	RunAt         time.Time        `json:"run_at"`
 	AttemptsCount int              `json:"attempts_count"`
 }
+
+type AttemptsResponse struct {
+	Data []Attempt `json:"data"`
+}
+
+type Attempt struct {
+	ID               string    `json:"id"`
+	Number           int       `json:"number"`
+	Status           string    `json:"status"`
+	StartedAt        time.Time `json:"started_at"`
+	FinishedAt       time.Time `json:"finished_at"`
+	ErrorDescription string    `json:"error_description"`
+}

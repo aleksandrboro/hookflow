@@ -30,8 +30,6 @@ func (h *JobHandler) HandleCreateJob(w http.ResponseWriter, r *http.Request) {
 
 	var req CreateJobRequest
 
-	defer r.Body.Close()
-
 	decoder := json.NewDecoder(r.Body)
 
 	if err := decoder.Decode(&req); err != nil {
@@ -45,11 +43,9 @@ func (h *JobHandler) HandleCreateJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-
 	resp := JobResponse{
 		ID:     id,
-		Status: domain.StatusPending,
+		Status: domain.JobStatusPending,
 		RunAt:  req.RunAt,
 	}
 
@@ -65,6 +61,7 @@ func (h *JobHandler) HandleGetJob(w http.ResponseWriter, r *http.Request) {
 	jobID := r.PathValue("job_id")
 	if jobID == "" {
 		http.Error(w, "Provide job_id", http.StatusBadRequest)
+		return
 	}
 
 	job, err := h.jobService.GetJob(ctx, jobID)
@@ -90,8 +87,49 @@ func (h *JobHandler) HandleGetAttempts(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	jobID := r.PathValue("job_id")
+	if jobID == "" {
+		http.Error(w, "Provide job_id", http.StatusBadRequest)
+		return
+	}
+
+	attempts, err := h.jobService.GetAttempts(ctx, jobID)
+	if err != nil {
+		http.Error(w, "Failed to get attempts", http.StatusInternalServerError)
+		return
+	}
+
+	resp := AttemptsResponse{
+		Data: make([]Attempt, 0, len(attempts)),
+	}
+
+	for _, attempt := range attempts {
+		resp.Data = append(resp.Data, Attempt{
+			ID:               attempt.ID,
+			Number:           attempt.Number,
+			Status:           attempt.Status,
+			StartedAt:        attempt.StartedAt,
+			FinishedAt:       attempt.FinishedAt,
+			ErrorDescription: attempt.ErrorDescription,
+		})
+	}
+
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		http.Error(w, "Failed to send response", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (h *JobHandler) HandleCancelJob(w http.ResponseWriter, r *http.Request) {
-	
+	ctx := r.Context()
+
+	jobID := r.PathValue("job_id")
+	if jobID == "" {
+		http.Error(w, "Provide job_id", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.jobService.CancelJob(ctx, jobID); err != nil {
+		http.Error(w, "Failed to cancel the job", http.StatusInternalServerError)
+		return
+	}
 }
