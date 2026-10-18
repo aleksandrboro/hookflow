@@ -3,9 +3,12 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
+	"time"
 
 	"github.com/aleksandrboro/hookflow/internal/domain"
 	"github.com/aleksandrboro/hookflow/internal/handler"
+	"github.com/google/uuid"
 )
 
 type JobService struct {
@@ -13,9 +16,9 @@ type JobService struct {
 }
 
 type Store interface {
-	SaveJob(context.Context, domain.Job) (string, error)
+	SaveJob(context.Context, *domain.Job) (string, error)
 	GetJob(context.Context, string) (*domain.Job, error)
-	GetAttempts(context.Context, string) ([]domain.Attempt, error)
+	GetAttempts(context.Context, string) ([]*domain.Attempt, error)
 	CancelJob(context.Context, string) error
 }
 
@@ -26,17 +29,55 @@ func NewJobService(store Store) *JobService {
 }
 
 func (s *JobService) CreateJob(ctx context.Context, req handler.CreateJobRequest) (string, error) {
-	return "", errors.New("Unimplemented")
+	id, err := uuid.NewV7()
+	if err != nil {
+		return "", errors.New("failed to generate id")
+	}
+
+	if req.RunAt.IsZero() {
+		req.RunAt = time.Now().UTC()
+	}
+
+	job := &domain.Job{
+		ID:            id.String(),
+		TargetURL:     req.URL,
+		Payload:       req.Payload,
+		Status:        domain.JobStatusPending,
+		RunAt:         req.RunAt,
+		AttemptsCount: 0,
+		MaxAttempts:   req.MaxAttempts,
+	}
+
+	jobID, err := s.store.SaveJob(ctx, job)
+	if err != nil {
+		return "", fmt.Errorf("Failed to save job: %w", err)
+	}
+
+	return jobID, nil
 }
 
 func (s *JobService) GetJob(ctx context.Context, jobID string) (*domain.Job, error) {
-	return nil, errors.New("Unimplemented")
+	job, err := s.store.GetJob(ctx, jobID)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get job: %w", err)
+	}
+
+	return job, nil
 }
 
-func (s *JobService) GetAttempts(ctx context.Context, jobID string) ([]domain.Attempt, error) {
-	return nil, errors.New("Unimplemented")
+func (s *JobService) GetAttempts(ctx context.Context, jobID string) ([]*domain.Attempt, error) {
+	attempts, err := s.store.GetAttempts(ctx, jobID)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get attempts: %w", err)
+	}
+
+	return attempts, nil
 }
 
 func (s *JobService) CancelJob(ctx context.Context, jobID string) error {
-	return errors.New("Unimplemented")
+	if err := s.store.CancelJob(ctx, jobID); err != nil {
+		return fmt.Errorf("Failed to cancel job: %w", err)
+	}
+
+	return nil
 }

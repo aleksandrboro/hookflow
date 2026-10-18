@@ -11,7 +11,6 @@ type Job struct {
 	Payload       json.RawMessage
 	Status        JobStatus
 	RunAt         time.Time
-	AvailableAt   time.Time
 	AttemptsCount int
 	MaxAttempts   int
 }

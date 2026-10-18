@@ -3,8 +3,8 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
-	"time"
 
 	"github.com/aleksandrboro/hookflow/internal/domain"
 	"github.com/gorilla/mux"
@@ -12,18 +12,20 @@ import (
 
 type JobHandler struct {
 	jobService JobService
+	log        *slog.Logger
 }
 
 type JobService interface {
 	CreateJob(context.Context, CreateJobRequest) (string, error)
 	GetJob(context.Context, string) (*domain.Job, error)
-	GetAttempts(context.Context, string) ([]domain.Attempt, error)
+	GetAttempts(context.Context, string) ([]*domain.Attempt, error)
 	CancelJob(context.Context, string) error
 }
 
-func NewJobHandler(service JobService) *JobHandler {
+func NewJobHandler(service JobService, log *slog.Logger) *JobHandler {
 	return &JobHandler{
 		jobService: service,
+		log:        log,
 	}
 }
 
@@ -41,10 +43,6 @@ func (h *JobHandler) HandleCreateJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.RunAt.IsZero() {
-		req.RunAt = time.Now().UTC()
-	}
-
 	id, err := h.jobService.CreateJob(ctx, req)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "Failed to create job")
@@ -57,12 +55,17 @@ func (h *JobHandler) HandleCreateJob(w http.ResponseWriter, r *http.Request) {
 		RunAt:  req.RunAt,
 	}
 
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		writeError(w, http.StatusInternalServerError, "Failed to send response")
+	body, err := json.Marshal(resp)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Failed to marshal response")
 		return
 	}
 
 	w.WriteHeader(http.StatusAccepted)
+	if _, err := w.Write(body); err != nil {
+		writeError(w, http.StatusInternalServerError, "Failed to send response")
+		return
+	}
 }
 
 func (h *JobHandler) HandleGetJob(w http.ResponseWriter, r *http.Request) {

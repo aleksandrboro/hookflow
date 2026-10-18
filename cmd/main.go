@@ -32,7 +32,7 @@ func main() {
 
 	service := service.NewJobService(store)
 
-	handler := handler.NewJobHandler(service)
+	handler := handler.NewJobHandler(service, log)
 
 	router := router.NewRouter(handler)
 
