@@ -3,10 +3,12 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 
 	"github.com/aleksandrboro/hookflow/internal/domain"
+	"github.com/aleksandrboro/hookflow/internal/storage"
 	"github.com/gorilla/mux"
 )
 
@@ -39,13 +41,18 @@ func (h *JobHandler) HandleCreateJob(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if err := decoder.Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "Invalid json")
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	id, err := h.jobService.CreateJob(ctx, req)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "Failed to create job")
+		writeError(w, http.StatusInternalServerError, "failed to create job")
 		return
 	}
 
@@ -57,13 +64,13 @@ func (h *JobHandler) HandleCreateJob(w http.ResponseWriter, r *http.Request) {
 
 	body, err := json.Marshal(resp)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "Failed to marshal response")
+		writeError(w, http.StatusInternalServerError, "failed to marshal response")
 		return
 	}
 
 	w.WriteHeader(http.StatusAccepted)
 	if _, err := w.Write(body); err != nil {
-		writeError(w, http.StatusInternalServerError, "Failed to send response")
+		h.log.Error("failed to send response", slog.String("error", err.Error()))
 		return
 	}
 }
@@ -75,18 +82,22 @@ func (h *JobHandler) HandleGetJob(w http.ResponseWriter, r *http.Request) {
 
 	jobID, ok := mux.Vars(r)["job_id"]
 	if !ok {
-		writeError(w, http.StatusBadRequest, "Provide job_id")
+		writeError(w, http.StatusBadRequest, "provide job_id")
 		return
 	}
 
 	job, err := h.jobService.GetJob(ctx, jobID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "Failed to get job")
+		if errors.Is(err, storage.ErrJobNotExists) {
+			writeError(w, http.StatusNotFound, "job not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "failed to get job")
 		return
 	}
 
 	if job == nil {
-		writeError(w, http.StatusNotFound, "Task not fount")
+		writeError(w, http.StatusNotFound, "task not fount")
 		return
 	}
 
@@ -98,7 +109,7 @@ func (h *JobHandler) HandleGetJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		writeError(w, http.StatusInternalServerError, "Failed to send response")
+		writeError(w, http.StatusInternalServerError, "failed to send response")
 		return
 	}
 }
@@ -110,13 +121,13 @@ func (h *JobHandler) HandleGetAttempts(w http.ResponseWriter, r *http.Request) {
 
 	jobID, ok := mux.Vars(r)["job_id"]
 	if !ok {
-		writeError(w, http.StatusBadRequest, "Provide job_id")
+		writeError(w, http.StatusBadRequest, "provide job_id")
 		return
 	}
 
 	attempts, err := h.jobService.GetAttempts(ctx, jobID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "Failed to get attempts")
+		writeError(w, http.StatusInternalServerError, "failed to get attempts")
 		return
 	}
 
@@ -136,7 +147,7 @@ func (h *JobHandler) HandleGetAttempts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		writeError(w, http.StatusInternalServerError, "Failed to send response")
+		writeError(w, http.StatusInternalServerError, "failed to send response")
 		return
 	}
 }
@@ -146,12 +157,16 @@ func (h *JobHandler) HandleCancelJob(w http.ResponseWriter, r *http.Request) {
 
 	jobID, ok := mux.Vars(r)["job_id"]
 	if !ok {
-		writeError(w, http.StatusBadRequest, "Provide job_id")
+		writeError(w, http.StatusBadRequest, "provide job_id")
 		return
 	}
 
 	if err := h.jobService.CancelJob(ctx, jobID); err != nil {
-		writeError(w, http.StatusInternalServerError, "Failed to cancel the job")
+		if errors.Is(err, storage.ErrJobNotExists) {
+			writeError(w, http.StatusNotFound, "job not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "failed to cancel the job")
 		return
 	}
 
@@ -168,7 +183,7 @@ func writeError(w http.ResponseWriter, code int, msg string) {
 	}
 
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		http.Error(w, "Failed to send error message", http.StatusInternalServerError)
+		http.Error(w, "failed to send error message", http.StatusInternalServerError)
 		return
 	}
 }

@@ -2,9 +2,14 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/aleksandrboro/hookflow/internal/domain"
+)
+
+var (
+	errInvalidMaxAttempts = errors.New("max attempts must be between 1 and 10")
 )
 
 type CreateJobRequest struct {
@@ -37,4 +42,20 @@ type Attempt struct {
 type ErrorMessage struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
+}
+
+func (r *CreateJobRequest) Validate() error {
+	if r.RunAt.IsZero() {
+		r.RunAt = time.Now().UTC()
+	}
+
+	if r.MaxAttempts == 0 {
+		r.MaxAttempts = 5
+	}
+
+	if r.MaxAttempts < 0 && r.MaxAttempts > 10 {
+		return errInvalidMaxAttempts
+	}
+
+	return nil
 }

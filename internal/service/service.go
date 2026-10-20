@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/aleksandrboro/hookflow/internal/domain"
 	"github.com/aleksandrboro/hookflow/internal/handler"
@@ -34,10 +33,6 @@ func (s *JobService) CreateJob(ctx context.Context, req handler.CreateJobRequest
 		return "", errors.New("failed to generate id")
 	}
 
-	if req.RunAt.IsZero() {
-		req.RunAt = time.Now().UTC()
-	}
-
 	job := &domain.Job{
 		ID:            id.String(),
 		TargetURL:     req.URL,
@@ -50,7 +45,7 @@ func (s *JobService) CreateJob(ctx context.Context, req handler.CreateJobRequest
 
 	jobID, err := s.store.SaveJob(ctx, job)
 	if err != nil {
-		return "", fmt.Errorf("Failed to save job: %w", err)
+		return "", fmt.Errorf("failed to save job: %w", err)
 	}
 
 	return jobID, nil
@@ -59,7 +54,7 @@ func (s *JobService) CreateJob(ctx context.Context, req handler.CreateJobRequest
 func (s *JobService) GetJob(ctx context.Context, jobID string) (*domain.Job, error) {
 	job, err := s.store.GetJob(ctx, jobID)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get job: %w", err)
+		return nil, fmt.Errorf("failed to get job: %w", err)
 	}
 
 	return job, nil
@@ -68,7 +63,7 @@ func (s *JobService) GetJob(ctx context.Context, jobID string) (*domain.Job, err
 func (s *JobService) GetAttempts(ctx context.Context, jobID string) ([]*domain.Attempt, error) {
 	attempts, err := s.store.GetAttempts(ctx, jobID)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get attempts: %w", err)
+		return nil, fmt.Errorf("failed to get attempts: %w", err)
 	}
 
 	return attempts, nil
@@ -76,7 +71,7 @@ func (s *JobService) GetAttempts(ctx context.Context, jobID string) ([]*domain.A
 
 func (s *JobService) CancelJob(ctx context.Context, jobID string) error {
 	if err := s.store.CancelJob(ctx, jobID); err != nil {
-		return fmt.Errorf("Failed to cancel job: %w", err)
+		return fmt.Errorf("failed to cancel job: %w", err)
 	}
 
 	return nil

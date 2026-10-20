@@ -8,6 +8,10 @@ import (
 	"github.com/aleksandrboro/hookflow/internal/domain"
 )
 
+var (
+	ErrJobNotExists = errors.New("job not exists")
+)
+
 type Storage struct {
 	jobs          []*domain.Job
 	attempts      []*domain.Attempt
@@ -41,7 +45,7 @@ func (s *Storage) GetJob(ctx context.Context, jobID string) (*domain.Job, error)
 		}
 	}
 
-	return nil, errors.New("job not find")
+	return nil, ErrJobNotExists
 }
 
 func (s *Storage) GetAttempts(ctx context.Context, jobID string) ([]*domain.Attempt, error) {
@@ -68,5 +72,5 @@ func (s *Storage) CancelJob(ctx context.Context, jobID string) error {
 		}
 	}
 
-	return nil
+	return ErrJobNotExists
 }
