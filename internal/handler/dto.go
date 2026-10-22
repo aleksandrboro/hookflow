@@ -10,6 +10,8 @@ import (
 
 var (
 	errInvalidMaxAttempts = errors.New("max attempts must be between 1 and 10")
+	errEmptyEmail         = errors.New("email cannot be empty")
+	errInvalidPayload     = errors.New("invalid payload")
 )
 
 type CreateJobRequest struct {
@@ -55,6 +57,14 @@ func (r *CreateJobRequest) Validate() error {
 
 	if r.MaxAttempts < 0 || r.MaxAttempts > 10 {
 		return errInvalidMaxAttempts
+	}
+
+	if r.URL == "" {
+		return errEmptyEmail
+	}
+
+	if !json.Valid(r.Payload) {
+		return errInvalidPayload
 	}
 
 	return nil

@@ -34,6 +34,8 @@ func NewJobHandler(service JobService, log *slog.Logger) *JobHandler {
 func (h *JobHandler) HandleCreateJob(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
+	r.Body = http.MaxBytesReader(w, r.Body, 64*1024)
+
 	var req CreateJobRequest
 
 	decoder := json.NewDecoder(r.Body)
@@ -41,18 +43,18 @@ func (h *JobHandler) HandleCreateJob(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if err := decoder.Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid json")
+		h.writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
 
 	if err := req.Validate(); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		h.writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	id, err := h.jobService.CreateJob(ctx, req)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to create job")
+		h.writeError(w, http.StatusInternalServerError, "failed to create job")
 		return
 	}
 
@@ -64,7 +66,7 @@ func (h *JobHandler) HandleCreateJob(w http.ResponseWriter, r *http.Request) {
 
 	body, err := json.Marshal(resp)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to marshal response")
+		h.writeError(w, http.StatusInternalServerError, "failed to marshal response")
 		return
 	}
 
@@ -82,22 +84,17 @@ func (h *JobHandler) HandleGetJob(w http.ResponseWriter, r *http.Request) {
 
 	jobID, ok := mux.Vars(r)["job_id"]
 	if !ok {
-		writeError(w, http.StatusBadRequest, "provide job_id")
+		h.writeError(w, http.StatusBadRequest, "provide job_id")
 		return
 	}
 
 	job, err := h.jobService.GetJob(ctx, jobID)
 	if err != nil {
 		if errors.Is(err, storage.ErrJobNotExists) {
-			writeError(w, http.StatusNotFound, "job not found")
+			h.writeError(w, http.StatusNotFound, "job not found")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "failed to get job")
-		return
-	}
-
-	if job.ID == "" {
-		writeError(w, http.StatusNotFound, "task not fount")
+		h.writeError(w, http.StatusInternalServerError, "failed to get job")
 		return
 	}
 
@@ -109,7 +106,7 @@ func (h *JobHandler) HandleGetJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to send response")
+		h.writeError(w, http.StatusInternalServerError, "failed to send response")
 		return
 	}
 }
@@ -121,17 +118,17 @@ func (h *JobHandler) HandleGetAttempts(w http.ResponseWriter, r *http.Request) {
 
 	jobID, ok := mux.Vars(r)["job_id"]
 	if !ok {
-		writeError(w, http.StatusBadRequest, "provide job_id")
+		h.writeError(w, http.StatusBadRequest, "provide job_id")
 		return
 	}
 
 	attempts, err := h.jobService.GetAttempts(ctx, jobID)
 	if err != nil {
 		if errors.Is(err, storage.ErrJobNotExists) {
-			writeError(w, http.StatusNotFound, "job not found")
+			h.writeError(w, http.StatusNotFound, "job not found")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "failed to get attempts")
+		h.writeError(w, http.StatusInternalServerError, "failed to get attempts")
 		return
 	}
 
@@ -151,7 +148,7 @@ func (h *JobHandler) HandleGetAttempts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to send response")
+		h.writeError(w, http.StatusInternalServerError, "failed to send response")
 		return
 	}
 }
@@ -161,23 +158,23 @@ func (h *JobHandler) HandleCancelJob(w http.ResponseWriter, r *http.Request) {
 
 	jobID, ok := mux.Vars(r)["job_id"]
 	if !ok {
-		writeError(w, http.StatusBadRequest, "provide job_id")
+		h.writeError(w, http.StatusBadRequest, "provide job_id")
 		return
 	}
 
 	if err := h.jobService.CancelJob(ctx, jobID); err != nil {
 		if errors.Is(err, storage.ErrJobNotExists) {
-			writeError(w, http.StatusNotFound, "job not found")
+			h.writeError(w, http.StatusNotFound, "job not found")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "failed to cancel the job")
+		h.writeError(w, http.StatusInternalServerError, "failed to cancel the job")
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func writeError(w http.ResponseWriter, code int, msg string) {
+func (h *JobHandler) writeError(w http.ResponseWriter, code int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 
@@ -187,7 +184,7 @@ func writeError(w http.ResponseWriter, code int, msg string) {
 	}
 
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		http.Error(w, "failed to send error message", http.StatusInternalServerError)
+		h.log.Error("failed to send error message", slog.String("error", err.Error()))
 		return
 	}
 }

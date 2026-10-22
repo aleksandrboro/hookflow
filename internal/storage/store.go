@@ -79,7 +79,7 @@ func (s *Storage) CancelJob(ctx context.Context, jobID string) error {
 	for _, job := range s.jobs {
 		if job.ID == jobID {
 			if job.Status != domain.JobStatusPending && job.Status != domain.JobStatusRetrying && job.Status != domain.JobStatusQueued {
-				return fmt.Errorf(ErrFailedCanceletion.Error()+"status: %s", job.Status)
+				return fmt.Errorf("%w status: %s", ErrFailedCanceletion, job.Status)
 			}
 			job.Status = "cancelled"
 			return nil
