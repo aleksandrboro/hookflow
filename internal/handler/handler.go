@@ -19,8 +19,8 @@ type JobHandler struct {
 
 type JobService interface {
 	CreateJob(context.Context, CreateJobRequest) (string, error)
-	GetJob(context.Context, string) (*domain.Job, error)
-	GetAttempts(context.Context, string) ([]*domain.Attempt, error)
+	GetJob(context.Context, string) (domain.Job, error)
+	GetAttempts(context.Context, string) ([]domain.Attempt, error)
 	CancelJob(context.Context, string) error
 }
 
@@ -96,7 +96,7 @@ func (h *JobHandler) HandleGetJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if job == nil {
+	if job.ID == "" {
 		writeError(w, http.StatusNotFound, "task not fount")
 		return
 	}
@@ -127,6 +127,10 @@ func (h *JobHandler) HandleGetAttempts(w http.ResponseWriter, r *http.Request) {
 
 	attempts, err := h.jobService.GetAttempts(ctx, jobID)
 	if err != nil {
+		if errors.Is(err, storage.ErrJobNotExists) {
+			writeError(w, http.StatusNotFound, "job not found")
+			return
+		}
 		writeError(w, http.StatusInternalServerError, "failed to get attempts")
 		return
 	}

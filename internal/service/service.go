@@ -16,8 +16,8 @@ type JobService struct {
 
 type Store interface {
 	SaveJob(context.Context, *domain.Job) (string, error)
-	GetJob(context.Context, string) (*domain.Job, error)
-	GetAttempts(context.Context, string) ([]*domain.Attempt, error)
+	GetJob(context.Context, string) (domain.Job, error)
+	GetAttempts(context.Context, string) ([]domain.Attempt, error)
 	CancelJob(context.Context, string) error
 }
 
@@ -51,16 +51,16 @@ func (s *JobService) CreateJob(ctx context.Context, req handler.CreateJobRequest
 	return jobID, nil
 }
 
-func (s *JobService) GetJob(ctx context.Context, jobID string) (*domain.Job, error) {
+func (s *JobService) GetJob(ctx context.Context, jobID string) (domain.Job, error) {
 	job, err := s.store.GetJob(ctx, jobID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get job: %w", err)
+		return domain.Job{}, fmt.Errorf("failed to get job: %w", err)
 	}
 
 	return job, nil
 }
 
-func (s *JobService) GetAttempts(ctx context.Context, jobID string) ([]*domain.Attempt, error) {
+func (s *JobService) GetAttempts(ctx context.Context, jobID string) ([]domain.Attempt, error) {
 	attempts, err := s.store.GetAttempts(ctx, jobID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get attempts: %w", err)

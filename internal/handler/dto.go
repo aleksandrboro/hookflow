@@ -53,7 +53,7 @@ func (r *CreateJobRequest) Validate() error {
 		r.MaxAttempts = 5
 	}
 
-	if r.MaxAttempts < 0 && r.MaxAttempts > 10 {
+	if r.MaxAttempts < 0 || r.MaxAttempts > 10 {
 		return errInvalidMaxAttempts
 	}
 
