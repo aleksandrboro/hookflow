@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/aleksandrboro/hookflow/internal/domain"
@@ -13,6 +14,7 @@ var (
 	errInvalidMaxAttempts = errors.New("max attempts must be between 1 and 10")
 	errEmptyURL           = errors.New("url cannot be empty")
 	errInvalidURL         = errors.New("invalid url")
+	errPayloadToLarge     = errors.New("payload to large")
 	errInvalidPayload     = errors.New("invalid payload")
 )
 
@@ -65,7 +67,17 @@ func (r *CreateJobRequest) Validate() error {
 		return errEmptyURL
 	}
 
-	if _, err := url.ParseRequestURI(r.URL); err != nil {
+	url, err := url.ParseRequestURI(r.URL)
+	var port int
+
+	if url.Port() != "" {
+		port, err = strconv.Atoi(url.Port())
+		if err != nil {
+			return err
+		}
+	}
+
+	if err != nil || (url.Scheme != "http" && url.Scheme != "https") || url.OmitHost || !url.IsAbs() || url.User != nil || url.Fragment != "" || (port < 0 && port > 65536) {
 		return errInvalidURL
 	}
 

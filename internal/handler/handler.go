@@ -34,8 +34,6 @@ func NewJobHandler(service JobService, log *slog.Logger) *JobHandler {
 func (h *JobHandler) HandleCreateJob(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	r.Body = http.MaxBytesReader(w, r.Body, 64*1024)
-
 	var req CreateJobRequest
 
 	decoder := json.NewDecoder(r.Body)
@@ -43,13 +41,12 @@ func (h *JobHandler) HandleCreateJob(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if err := decoder.Decode(&req); err != nil {
-		var maxBytesErr *http.MaxBytesError
-
-		if errors.As(err, &maxBytesErr) {
-			h.writeError(w, http.StatusRequestEntityTooLarge, "request is too large")
-			return
-		}
 		h.writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+
+	if len(req.Payload) > 64*1024 {
+		h.writeError(w, http.StatusRequestEntityTooLarge, "payload is too large")
 		return
 	}
 
@@ -117,7 +114,7 @@ func (h *JobHandler) HandleGetJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusAccepted)
+	w.WriteHeader(http.StatusOK)
 	if _, err := w.Write(body); err != nil {
 		h.log.Error("failed to send response", slog.String("error", err.Error()))
 		return
@@ -166,7 +163,7 @@ func (h *JobHandler) HandleGetAttempts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusAccepted)
+	w.WriteHeader(http.StatusOK)
 	if _, err := w.Write(body); err != nil {
 		h.log.Error("failed to send response", slog.String("error", err.Error()))
 		return
