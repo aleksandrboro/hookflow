@@ -56,7 +56,7 @@ func (h *JobHandler) HandleCreateJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var extra any
-	if err := decoder.Decode(extra); err != io.EOF {
+	if err := decoder.Decode(&extra); err != io.EOF {
 		h.writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}

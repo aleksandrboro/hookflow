@@ -68,21 +68,8 @@ func (r *CreateJobRequest) Validate() error {
 		return errEmptyURL
 	}
 
-	url, err := url.ParseRequestURI(r.URL)
-	if err != nil {
-		return errInvalidURL
-	}
-	var port int
-
-	if url.Port() != "" {
-		port, err = strconv.Atoi(url.Port())
-		if err != nil {
-			return errInvalidURL
-		}
-	}
-
-	if (strings.ToLower(url.Scheme) != "http" && strings.ToLower(url.Scheme) != "https") || url.OmitHost || !url.IsAbs() || url.Host != "" || url.User != nil || url.Fragment != "" || (port < 0 || port > 65536) {
-		return errInvalidURL
+	if err := validateTargetURL(r.URL); err != nil {
+		return err
 	}
 
 	if !json.Valid(r.Payload) {
@@ -97,6 +84,42 @@ func (r *CreateJobRequest) Validate() error {
 
 	if _, ok := data.(map[string]any); !ok {
 		return errInvalidPayload
+	}
+
+	return nil
+}
+
+func validateTargetURL(raw string) error {
+	if raw == "" {
+		return errEmptyURL
+	}
+	if strings.TrimSpace(raw) != raw {
+		return errInvalidURL
+	}
+
+	parsedURL, err := url.Parse(raw)
+	if err != nil {
+		return errInvalidURL
+	}
+
+	scheme := strings.ToLower(parsedURL.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return errInvalidURL
+	}
+
+	if !parsedURL.IsAbs() || parsedURL.Opaque != "" || parsedURL.Hostname() == "" {
+		return errInvalidURL
+	}
+
+	if parsedURL.User != nil || parsedURL.Fragment != "" {
+		return errInvalidURL
+	}
+
+	if portText := parsedURL.Port(); portText != "" {
+		port, err := strconv.Atoi(portText)
+		if err != nil || port < 1 || port > 65535 {
+			return errInvalidURL
+		}
 	}
 
 	return nil
