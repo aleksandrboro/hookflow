@@ -43,6 +43,12 @@ func (h *JobHandler) HandleCreateJob(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if err := decoder.Decode(&req); err != nil {
+		var maxBytesErr *http.MaxBytesError
+
+		if errors.As(err, &maxBytesErr) {
+			h.writeError(w, http.StatusRequestEntityTooLarge, "request is too large")
+			return
+		}
 		h.writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
@@ -105,8 +111,15 @@ func (h *JobHandler) HandleGetJob(w http.ResponseWriter, r *http.Request) {
 		AttemptsCount: job.AttemptsCount,
 	}
 
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		h.writeError(w, http.StatusInternalServerError, "failed to send response")
+	body, err := json.Marshal(resp)
+	if err != nil {
+		h.writeError(w, http.StatusInternalServerError, "failed to marshal response")
+		return
+	}
+
+	w.WriteHeader(http.StatusAccepted)
+	if _, err := w.Write(body); err != nil {
+		h.log.Error("failed to send response", slog.String("error", err.Error()))
 		return
 	}
 }
@@ -147,8 +160,15 @@ func (h *JobHandler) HandleGetAttempts(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		h.writeError(w, http.StatusInternalServerError, "failed to send response")
+	body, err := json.Marshal(resp)
+	if err != nil {
+		h.writeError(w, http.StatusInternalServerError, "failed to marshal response")
+		return
+	}
+
+	w.WriteHeader(http.StatusAccepted)
+	if _, err := w.Write(body); err != nil {
+		h.log.Error("failed to send response", slog.String("error", err.Error()))
 		return
 	}
 }

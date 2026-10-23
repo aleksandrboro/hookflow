@@ -3,7 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
-	"strings"
+	"net/url"
 	"time"
 
 	"github.com/aleksandrboro/hookflow/internal/domain"
@@ -65,7 +65,7 @@ func (r *CreateJobRequest) Validate() error {
 		return errEmptyURL
 	}
 
-	if !strings.HasPrefix(r.URL, "http://") && !strings.HasPrefix(r.URL, "https://") {
+	if _, err := url.ParseRequestURI(r.URL); err != nil {
 		return errInvalidURL
 	}
 
@@ -79,8 +79,7 @@ func (r *CreateJobRequest) Validate() error {
 		return err
 	}
 
-	rootObj, ok := data.(map[string]any)
-	if !ok || len(rootObj) == 0 {
+	if _, ok := data.(map[string]any); !ok {
 		return errInvalidPayload
 	}
 
