@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aleksandrboro/hookflow/internal/domain"
@@ -68,16 +69,19 @@ func (r *CreateJobRequest) Validate() error {
 	}
 
 	url, err := url.ParseRequestURI(r.URL)
+	if err != nil {
+		return errInvalidURL
+	}
 	var port int
 
 	if url.Port() != "" {
 		port, err = strconv.Atoi(url.Port())
 		if err != nil {
-			return err
+			return errInvalidURL
 		}
 	}
 
-	if err != nil || (url.Scheme != "http" && url.Scheme != "https") || url.OmitHost || !url.IsAbs() || url.User != nil || url.Fragment != "" || (port < 0 && port > 65536) {
+	if (strings.ToLower(url.Scheme) != "http" && strings.ToLower(url.Scheme) != "https") || url.OmitHost || !url.IsAbs() || url.Host != "" || url.User != nil || url.Fragment != "" || (port < 0 || port > 65536) {
 		return errInvalidURL
 	}
 

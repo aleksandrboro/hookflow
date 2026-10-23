@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 
@@ -34,6 +35,8 @@ func NewJobHandler(service JobService, log *slog.Logger) *JobHandler {
 func (h *JobHandler) HandleCreateJob(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
+	r.Body = http.MaxBytesReader(w, r.Body, 80*1024)
+
 	var req CreateJobRequest
 
 	decoder := json.NewDecoder(r.Body)
@@ -41,6 +44,19 @@ func (h *JobHandler) HandleCreateJob(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if err := decoder.Decode(&req); err != nil {
+		var maxBytesErr *http.MaxBytesError
+
+		if errors.As(err, &maxBytesErr) {
+			h.writeError(w, http.StatusRequestEntityTooLarge, "request is too large")
+			return
+		}
+
+		h.writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+
+	var extra any
+	if err := decoder.Decode(extra); err != io.EOF {
 		h.writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
