@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/aleksandrboro/hookflow/internal/domain"
@@ -10,7 +11,8 @@ import (
 
 var (
 	errInvalidMaxAttempts = errors.New("max attempts must be between 1 and 10")
-	errEmptyEmail         = errors.New("email cannot be empty")
+	errEmptyURL           = errors.New("url cannot be empty")
+	errInvalidURL         = errors.New("invalid url")
 	errInvalidPayload     = errors.New("invalid payload")
 )
 
@@ -60,10 +62,25 @@ func (r *CreateJobRequest) Validate() error {
 	}
 
 	if r.URL == "" {
-		return errEmptyEmail
+		return errEmptyURL
+	}
+
+	if !strings.HasPrefix(r.URL, "http://") && !strings.HasPrefix(r.URL, "https://") {
+		return errInvalidURL
 	}
 
 	if !json.Valid(r.Payload) {
+		return errInvalidPayload
+	}
+
+	var data any
+
+	if err := json.Unmarshal(r.Payload, &data); err != nil {
+		return err
+	}
+
+	rootObj, ok := data.(map[string]any)
+	if !ok || len(rootObj) == 0 {
 		return errInvalidPayload
 	}
 

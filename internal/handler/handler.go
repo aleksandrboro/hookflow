@@ -167,6 +167,11 @@ func (h *JobHandler) HandleCancelJob(w http.ResponseWriter, r *http.Request) {
 			h.writeError(w, http.StatusNotFound, "job not found")
 			return
 		}
+		if errors.Is(err, storage.ErrFailedCanceletion) {
+			h.writeError(w, http.StatusConflict, "failed to cancel the job")
+			return
+		}
+
 		h.writeError(w, http.StatusInternalServerError, "failed to cancel the job")
 		return
 	}
