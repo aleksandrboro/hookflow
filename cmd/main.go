@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/aleksandrboro/hookflow/internal/config"
 	"github.com/aleksandrboro/hookflow/internal/handler"
@@ -28,7 +29,12 @@ func main() {
 
 	log.Info("config", slog.Any("cfg", cfg))
 
-	store := storage.NewStore()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	store, err := storage.NewStore(ctx, &cfg.DB)
+	if err != nil {
+		panic(err)
+	}
 
 	service := service.NewJobService(store)
 
@@ -41,7 +47,7 @@ func main() {
 		panic(err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel = context.WithCancel(context.Background())
 
 	go func() {
 		if err := server.Start(); err != nil {
