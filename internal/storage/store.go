@@ -3,7 +3,8 @@ package storage
 import (
 	"context"
 	"errors"
-	"fmt"
+	"net"
+	"net/url"
 
 	"github.com/aleksandrboro/hookflow/internal/config"
 	"github.com/aleksandrboro/hookflow/internal/domain"
@@ -25,13 +26,20 @@ func NewStore(ctx context.Context, dbCfg *config.DBCfg) (*Storage, error) {
 		return nil, ErrEmptyDBConfig
 	}
 
-	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", dbCfg.User, dbCfg.Password, dbCfg.Host, dbCfg.Port, dbCfg.Name)
-	pool, err := pgxpool.New(ctx, connStr)
+	u := url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(dbCfg.User, dbCfg.Password),
+		Host:   net.JoinHostPort(dbCfg.Host, dbCfg.Port),
+		Path:   "/" + dbCfg.Name,
+	}
+
+	pool, err := pgxpool.New(ctx, u.String())
 	if err != nil {
 		return nil, err
 	}
 
 	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
 		return nil, err
 	}
 

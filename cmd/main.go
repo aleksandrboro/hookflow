@@ -61,6 +61,7 @@ func main() {
 	<-sign
 
 	if err := server.Shutdown(ctx); err != nil {
+		store.Close()
 		panic(err)
 	}
 
