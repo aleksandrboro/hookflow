@@ -21,7 +21,11 @@ type ServerCfg struct {
 }
 
 type DBCfg struct {
-	User string `yaml:"user"`
+	User     string `env:"DB_USER" env-required:"true"`
+	Password string `env:"DB_PASS" env-required:"true"`
+	Host     string `env:"DB_HOST" env-required:"true"`
+	Port     string `env:"DB_PORT" env-required:"true"`
+	Name     string `env:"DB_NAME" env-required:"true"`
 }
 
 func MustLoad() *Config {
@@ -38,6 +42,10 @@ func MustLoad() *Config {
 	var config Config
 
 	if err := cleanenv.ReadConfig(cfgPath, &config); err != nil {
+		panic(err)
+	}
+
+	if err := cleanenv.ReadConfig(".env", &config.DB); err != nil {
 		panic(err)
 	}
 

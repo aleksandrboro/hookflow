@@ -3,5 +3,3 @@ server:
   addr: localhost:8080
   read_timeout: 5s
   write_timeout: 10s
-db:
-  user: postgres
