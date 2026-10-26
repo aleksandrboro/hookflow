@@ -15,8 +15,7 @@ var (
 	errInvalidMaxAttempts = errors.New("max attempts must be between 1 and 10")
 	errEmptyURL           = errors.New("url cannot be empty")
 	errInvalidURL         = errors.New("invalid url")
-	errPayloadToLarge     = errors.New("payload to large")
-	errInvalidPayload     = errors.New("invalid payload")
+	errInvalidPayload     = errors.New("payload must be a JSON object")
 )
 
 type CreateJobRequest struct {
@@ -59,30 +58,18 @@ func (r *CreateJobRequest) Validate() error {
 	if r.MaxAttempts == 0 {
 		r.MaxAttempts = 5
 	}
-
-	if r.MaxAttempts < 0 || r.MaxAttempts > 10 {
+	if r.MaxAttempts < 1 || r.MaxAttempts > 10 {
 		return errInvalidMaxAttempts
-	}
-
-	if r.URL == "" {
-		return errEmptyURL
 	}
 
 	if err := validateTargetURL(r.URL); err != nil {
 		return err
 	}
 
-	if !json.Valid(r.Payload) {
-		return errInvalidPayload
-	}
-
-	var data any
-
-	if err := json.Unmarshal(r.Payload, &data); err != nil {
-		return err
-	}
-
-	if _, ok := data.(map[string]any); !ok {
+	// Unmarshalling into a map both checks that the JSON is valid and that its
+	// top-level value is an object. An empty object is allowed.
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(r.Payload, &payload); err != nil || payload == nil {
 		return errInvalidPayload
 	}
 
@@ -112,6 +99,9 @@ func validateTargetURL(raw string) error {
 	}
 
 	if parsedURL.User != nil || parsedURL.Fragment != "" {
+		return errInvalidURL
+	}
+	if strings.HasSuffix(parsedURL.Host, ":") {
 		return errInvalidURL
 	}
 

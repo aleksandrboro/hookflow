@@ -13,6 +13,11 @@ import (
 	"github.com/gorilla/mux"
 )
 
+const (
+	maxRequestBodyBytes = 80 * 1024
+	maxPayloadBytes     = 64 * 1024
+)
+
 type JobHandler struct {
 	jobService JobService
 	log        *slog.Logger
@@ -26,6 +31,10 @@ type JobService interface {
 }
 
 func NewJobHandler(service JobService, log *slog.Logger) *JobHandler {
+	if log == nil {
+		log = slog.Default()
+	}
+
 	return &JobHandler{
 		jobService: service,
 		log:        log,
@@ -33,35 +42,32 @@ func NewJobHandler(service JobService, log *slog.Logger) *JobHandler {
 }
 
 func (h *JobHandler) HandleCreateJob(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	r.Body = http.MaxBytesReader(w, r.Body, 80*1024)
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodyBytes)
 
 	var req CreateJobRequest
-
 	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
 
 	w.Header().Set("Content-Type", "application/json")
 
 	if err := decoder.Decode(&req); err != nil {
-		var maxBytesErr *http.MaxBytesError
+		h.writeDecodeError(w, err)
+		return
+	}
 
-		if errors.As(err, &maxBytesErr) {
-			h.writeError(w, http.StatusRequestEntityTooLarge, "request is too large")
-			return
+	// Decode a second value to ensure the body contains exactly one JSON value.
+	// Whitespace after the first value is fine; in that case Decode returns io.EOF.
+	var extra json.RawMessage
+	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+		if err == nil {
+			h.writeError(w, http.StatusBadRequest, "request must contain exactly one JSON value")
+		} else {
+			h.writeDecodeError(w, err)
 		}
-
-		h.writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
 
-	var extra any
-	if err := decoder.Decode(&extra); err != io.EOF {
-		h.writeError(w, http.StatusBadRequest, "invalid json")
-		return
-	}
-
-	if len(req.Payload) > 64*1024 {
+	if len(req.Payload) > maxPayloadBytes {
 		h.writeError(w, http.StatusRequestEntityTooLarge, "payload is too large")
 		return
 	}
@@ -71,7 +77,7 @@ func (h *JobHandler) HandleCreateJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, err := h.jobService.CreateJob(ctx, req)
+	id, err := h.jobService.CreateJob(r.Context(), req)
 	if err != nil {
 		h.writeError(w, http.StatusInternalServerError, "failed to create job")
 		return
@@ -91,14 +97,14 @@ func (h *JobHandler) HandleCreateJob(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusAccepted)
 	if _, err := w.Write(body); err != nil {
-		h.log.Error("failed to send response", slog.String("error", err.Error()))
-		return
+		h.log.Error("failed to send response",
+			slog.String("job_id", id),
+			slog.String("error", err.Error()),
+		)
 	}
 }
 
 func (h *JobHandler) HandleGetJob(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
 	w.Header().Set("Content-Type", "application/json")
 
 	jobID, ok := mux.Vars(r)["job_id"]
@@ -107,7 +113,7 @@ func (h *JobHandler) HandleGetJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	job, err := h.jobService.GetJob(ctx, jobID)
+	job, err := h.jobService.GetJob(r.Context(), jobID)
 	if err != nil {
 		if errors.Is(err, storage.ErrJobNotExists) {
 			h.writeError(w, http.StatusNotFound, "job not found")
@@ -132,14 +138,14 @@ func (h *JobHandler) HandleGetJob(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	if _, err := w.Write(body); err != nil {
-		h.log.Error("failed to send response", slog.String("error", err.Error()))
-		return
+		h.log.Error("failed to send response",
+			slog.String("job_id", jobID),
+			slog.String("error", err.Error()),
+		)
 	}
 }
 
 func (h *JobHandler) HandleGetAttempts(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
 	w.Header().Set("Content-Type", "application/json")
 
 	jobID, ok := mux.Vars(r)["job_id"]
@@ -148,7 +154,7 @@ func (h *JobHandler) HandleGetAttempts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	attempts, err := h.jobService.GetAttempts(ctx, jobID)
+	attempts, err := h.jobService.GetAttempts(r.Context(), jobID)
 	if err != nil {
 		if errors.Is(err, storage.ErrJobNotExists) {
 			h.writeError(w, http.StatusNotFound, "job not found")
@@ -181,21 +187,21 @@ func (h *JobHandler) HandleGetAttempts(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	if _, err := w.Write(body); err != nil {
-		h.log.Error("failed to send response", slog.String("error", err.Error()))
-		return
+		h.log.Error("failed to send response",
+			slog.String("job_id", jobID),
+			slog.String("error", err.Error()),
+		)
 	}
 }
 
 func (h *JobHandler) HandleCancelJob(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
 	jobID, ok := mux.Vars(r)["job_id"]
 	if !ok {
 		h.writeError(w, http.StatusBadRequest, "provide job_id")
 		return
 	}
 
-	if err := h.jobService.CancelJob(ctx, jobID); err != nil {
+	if err := h.jobService.CancelJob(r.Context(), jobID); err != nil {
 		if errors.Is(err, storage.ErrJobNotExists) {
 			h.writeError(w, http.StatusNotFound, "job not found")
 			return
@@ -212,6 +218,16 @@ func (h *JobHandler) HandleCancelJob(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *JobHandler) writeDecodeError(w http.ResponseWriter, err error) {
+	var maxBytesErr *http.MaxBytesError
+	if errors.As(err, &maxBytesErr) {
+		h.writeError(w, http.StatusRequestEntityTooLarge, "request is too large")
+		return
+	}
+
+	h.writeError(w, http.StatusBadRequest, "invalid json")
+}
+
 func (h *JobHandler) writeError(w http.ResponseWriter, code int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
@@ -223,6 +239,5 @@ func (h *JobHandler) writeError(w http.ResponseWriter, code int, msg string) {
 
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		h.log.Error("failed to send error message", slog.String("error", err.Error()))
-		return
 	}
 }
