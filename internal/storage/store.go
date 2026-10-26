@@ -31,6 +31,10 @@ func NewStore(ctx context.Context, dbCfg *config.DBCfg) (*Storage, error) {
 		return nil, err
 	}
 
+	if err := pool.Ping(ctx); err != nil {
+		return nil, err
+	}
+
 	return &Storage{
 		db: pool,
 	}, nil
@@ -101,4 +105,8 @@ func (s *Storage) CancelJob(ctx context.Context, jobID string) error {
 
 	// return ErrJobNotExists
 	return ErrEmptyDBConfig
+}
+
+func (s *Storage) Close() {
+	s.db.Close()
 }

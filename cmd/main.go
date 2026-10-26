@@ -27,8 +27,6 @@ func main() {
 
 	log := setupLogger(cfg.LogLevel)
 
-	log.Info("config", slog.Any("cfg", cfg))
-
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	store, err := storage.NewStore(ctx, &cfg.DB)
@@ -50,6 +48,7 @@ func main() {
 	ctx, cancel = context.WithCancel(context.Background())
 
 	go func() {
+		log.Info("starting server on " + cfg.Server.Addr)
 		if err := server.Start(); err != nil {
 			log.Error("failed to start server", slog.String("error", err.Error()))
 			os.Exit(1)
@@ -64,6 +63,8 @@ func main() {
 	if err := server.Shutdown(ctx); err != nil {
 		panic(err)
 	}
+
+	store.Close()
 
 	cancel()
 }

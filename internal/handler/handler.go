@@ -42,6 +42,9 @@ func NewJobHandler(service JobService, log *slog.Logger) *JobHandler {
 }
 
 func (h *JobHandler) HandleCreateJob(w http.ResponseWriter, r *http.Request) {
+	op := "handler.HandleCreateJob"
+	log := h.log.With(slog.String("op", op))
+
 	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodyBytes)
 
 	var req CreateJobRequest
@@ -55,8 +58,6 @@ func (h *JobHandler) HandleCreateJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Decode a second value to ensure the body contains exactly one JSON value.
-	// Whitespace after the first value is fine; in that case Decode returns io.EOF.
 	var extra json.RawMessage
 	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
 		if err == nil {
@@ -97,7 +98,7 @@ func (h *JobHandler) HandleCreateJob(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusAccepted)
 	if _, err := w.Write(body); err != nil {
-		h.log.Error("failed to send response",
+		log.Error("failed to send response",
 			slog.String("job_id", id),
 			slog.String("error", err.Error()),
 		)
