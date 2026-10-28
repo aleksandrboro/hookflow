@@ -1,9 +1,14 @@
-.PHONY:
-start:
-	go run cmd/main.go -config=config/local.yaml
+.DEFAULT_GOAL := start
+.PHONY: start test up-migrations down-migrations
 
-.PHONY:
+start:
+	go run cmd/hookflow/main.go --config=config/local.yaml
+
 test:
 	go test -v -race -timeout 30s ./...
 
-.DEFAULT_GOAL: start
+up-migrations:
+	go run cmd/migrator/migrator.go --migrations-path=./migrations --migrations-type=up
+
+down-migrations:
+	go run cmd/migrator/migrator.go --migrations-path=./migrations --migrations-type=down
