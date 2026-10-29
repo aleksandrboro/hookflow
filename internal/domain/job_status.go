@@ -12,3 +12,11 @@ const (
 	JobStatusDead      JobStatus = "dead"
 	JobStatusCancelled JobStatus = "cancelled"
 )
+
+var (
+	AllowedToCancel = map[JobStatus]struct{}{
+		JobStatusPending:  {},
+		JobStatusRetrying: {},
+		JobStatusQueued:   {},
+	}
+)

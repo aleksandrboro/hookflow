@@ -13,4 +13,6 @@ type Job struct {
 	RunAt         time.Time
 	AttemptsCount int
 	MaxAttempts   int
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }

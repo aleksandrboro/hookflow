@@ -5,16 +5,19 @@ import (
 	"errors"
 	"net"
 	"net/url"
+	"time"
 
 	"github.com/aleksandrboro/hookflow/internal/config"
 	"github.com/aleksandrboro/hookflow/internal/domain"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var (
-	ErrJobNotExists      = errors.New("job not exists")
-	ErrFailedCanceletion = errors.New("job with this status cannot be canceled")
-	ErrEmptyDBConfig     = errors.New("db config cannot be empty")
+	ErrEmptyJob            = errors.New("provide job")
+	ErrJobNotExists        = errors.New("job not exists")
+	ErrEmptyDBConfig       = errors.New("db config cannot be empty")
+	ErrUncancellableStatus = errors.New("job with this status cannot be canceled")
 )
 
 type Storage struct {
@@ -49,70 +52,58 @@ func NewStore(ctx context.Context, dbCfg *config.DBCfg) (*Storage, error) {
 }
 
 func (s *Storage) SaveJob(ctx context.Context, job *domain.Job) (string, error) {
-	// if job == nil {
-	// 	return "", errors.New("provide job")
-	// }
-	// s.jobsMutex.Lock()
-	// defer s.jobsMutex.Unlock()
-	// s.jobs = append(s.jobs, job)
-	// return job.ID, nil
+	if job == nil {
+		return "", ErrEmptyJob
+	}
 
-	return "", ErrEmptyDBConfig
+	if _, err := s.db.Exec(ctx,
+		"INSERT INTO jobs (id, target_url, payload, run_at, max_attempts, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+		job.ID, job.TargetURL, job.Payload, job.RunAt, job.MaxAttempts, time.Now(), time.Now()); err != nil {
+		return "", err
+	}
+
+	return job.ID, nil
+
 }
 
 func (s *Storage) GetJob(ctx context.Context, jobID string) (domain.Job, error) {
-	// s.jobsMutex.RLock()
-	// defer s.jobsMutex.RUnlock()
-	// for _, job := range s.jobs {
-	// 	if job.ID == jobID {
-	// 		return *job, nil
-	// 	}
-	// }
+	var job domain.Job
 
-	// return domain.Job{}, ErrJobNotExists
+	if err := s.db.QueryRow(ctx,
+		"SELECT * FROM jobs WHERE id = $1",
+		jobID).Scan(&job.ID, &job.TargetURL, &job.Payload, &job.Status, &job.RunAt, &job.AttemptsCount, &job.MaxAttempts, &job.CreatedAt, &job.UpdatedAt); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.Job{}, ErrJobNotExists
+		}
 
-	return domain.Job{}, ErrEmptyDBConfig
-}
+		return domain.Job{}, err
+	}
 
-func (s *Storage) GetAttempts(ctx context.Context, jobID string) ([]domain.Attempt, error) {
-	// attempts := []domain.Attempt{}
-
-	// job, err := s.GetJob(ctx, jobID)
-	// if err != nil {
-	// 	return attempts, err
-	// }
-
-	// if job.ID == "" {
-	// 	return attempts, ErrJobNotExists
-	// }
-
-	// s.attemptsMutex.Lock()
-	// defer s.attemptsMutex.Unlock()
-	// for _, attempt := range s.attempts {
-	// 	if attempt.JobID == jobID {
-	// 		attempts = append(attempts, *attempt)
-	// 	}
-	// }
-
-	// return attempts, nil
-	return nil, ErrEmptyDBConfig
+	return job, nil
 }
 
 func (s *Storage) CancelJob(ctx context.Context, jobID string) error {
-	// s.jobsMutex.Lock()
-	// defer s.jobsMutex.Unlock()
-	// for _, job := range s.jobs {
-	// 	if job.ID == jobID {
-	// 		if job.Status != domain.JobStatusPending && job.Status != domain.JobStatusRetrying && job.Status != domain.JobStatusQueued {
-	// 			return fmt.Errorf("%w status: %s", ErrFailedCanceletion, job.Status)
-	// 		}
-	// 		job.Status = "cancelled"
-	// 		return nil
-	// 	}
-	// }
+	var job domain.Job
 
-	// return ErrJobNotExists
-	return ErrEmptyDBConfig
+	if err := s.db.QueryRow(ctx,
+		"SELECT * FROM jobs WHERE id = $1",
+		jobID).Scan(&job.ID, &job.TargetURL, &job.Payload, &job.Status, &job.RunAt, &job.AttemptsCount, &job.MaxAttempts, &job.CreatedAt, &job.UpdatedAt); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrJobNotExists
+		}
+
+		return err
+	}
+
+	if _, ok := domain.AllowedToCancel[job.Status]; !ok {
+		return ErrUncancellableStatus
+	}
+
+	if _, err := s.db.Exec(ctx, "UPDATE jobs SET status = $1 WHERE id = $2", domain.JobStatusCancelled, jobID); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *Storage) Close() {

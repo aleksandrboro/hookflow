@@ -27,7 +27,7 @@ type JobHandler struct {
 type JobService interface {
 	CreateJob(context.Context, CreateJobRequest) (string, error)
 	GetJob(context.Context, string) (domain.Job, error)
-	GetAttempts(context.Context, string) ([]domain.Attempt, error)
+	// GetAttempts(context.Context, string) ([]domain.Attempt, error)
 	CancelJob(context.Context, string) error
 }
 
@@ -189,73 +189,73 @@ func (h *JobHandler) HandleGetJob(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
-func (h *JobHandler) HandleGetAttempts(w http.ResponseWriter, r *http.Request) {
-	op := "handler.HandleGetAttempts"
+// func (h *JobHandler) HandleGetAttempts(w http.ResponseWriter, r *http.Request) {
+// 	op := "handler.HandleGetAttempts"
 
-	ctx := r.Context()
-	requestID, err := requestid.RequestIDFromContext(ctx)
-	if err != nil {
-		h.log.Error("failed to get request_id from context",
-			slog.String("op", op),
-			slog.Any("error", err),
-		)
-		h.writeError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
+// 	ctx := r.Context()
+// 	requestID, err := requestid.RequestIDFromContext(ctx)
+// 	if err != nil {
+// 		h.log.Error("failed to get request_id from context",
+// 			slog.String("op", op),
+// 			slog.Any("error", err),
+// 		)
+// 		h.writeError(w, http.StatusInternalServerError, "internal error")
+// 		return
+// 	}
 
-	log := h.log.With(slog.String("op", op), slog.String("request_id", requestID))
+// 	log := h.log.With(slog.String("op", op), slog.String("request_id", requestID))
 
-	w.Header().Set("Content-Type", "application/json")
+// 	w.Header().Set("Content-Type", "application/json")
 
-	jobID, ok := mux.Vars(r)["job_id"]
-	if !ok {
-		h.writeError(w, http.StatusBadRequest, "provide job_id")
-		return
-	}
+// 	jobID, ok := mux.Vars(r)["job_id"]
+// 	if !ok {
+// 		h.writeError(w, http.StatusBadRequest, "provide job_id")
+// 		return
+// 	}
 
-	attempts, err := h.jobService.GetAttempts(r.Context(), jobID)
-	if err != nil {
-		if errors.Is(err, storage.ErrJobNotExists) {
-			h.writeError(w, http.StatusNotFound, "job not found")
-			return
-		}
-		log.Error("failed to get attempts", slog.Any("error", err))
-		h.writeError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
+// 	attempts, err := h.jobService.GetAttempts(r.Context(), jobID)
+// 	if err != nil {
+// 		if errors.Is(err, storage.ErrJobNotExists) {
+// 			h.writeError(w, http.StatusNotFound, "job not found")
+// 			return
+// 		}
+// 		log.Error("failed to get attempts", slog.Any("error", err))
+// 		h.writeError(w, http.StatusInternalServerError, "internal error")
+// 		return
+// 	}
 
-	resp := AttemptsResponse{
-		Data: make([]Attempt, 0, len(attempts)),
-	}
+// 	resp := AttemptsResponse{
+// 		Data: make([]Attempt, 0, len(attempts)),
+// 	}
 
-	for _, attempt := range attempts {
-		resp.Data = append(resp.Data, Attempt{
-			ID:               attempt.ID,
-			Number:           attempt.Number,
-			Status:           attempt.Status,
-			StartedAt:        attempt.StartedAt,
-			FinishedAt:       attempt.FinishedAt,
-			ErrorDescription: attempt.ErrorDescription,
-		})
-	}
+// 	for _, attempt := range attempts {
+// 		resp.Data = append(resp.Data, Attempt{
+// 			ID:               attempt.ID,
+// 			Number:           attempt.Number,
+// 			Status:           attempt.Status,
+// 			StartedAt:        attempt.StartedAt,
+// 			FinishedAt:       attempt.FinishedAt,
+// 			ErrorDescription: attempt.ErrorDescription,
+// 		})
+// 	}
 
-	body, err := json.Marshal(resp)
-	if err != nil {
-		log.Error("failed to marshal response", slog.Any("error", err))
-		h.writeError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
+// 	body, err := json.Marshal(resp)
+// 	if err != nil {
+// 		log.Error("failed to marshal response", slog.Any("error", err))
+// 		h.writeError(w, http.StatusInternalServerError, "internal error")
+// 		return
+// 	}
 
-	w.WriteHeader(http.StatusOK)
-	if _, err := w.Write(body); err != nil {
-		log.Error("failed to send response",
-			slog.String("job_id", jobID),
-			slog.String("error", err.Error()),
-		)
-	}
+// 	w.WriteHeader(http.StatusOK)
+// 	if _, err := w.Write(body); err != nil {
+// 		log.Error("failed to send response",
+// 			slog.String("job_id", jobID),
+// 			slog.String("error", err.Error()),
+// 		)
+// 	}
 
-	log.Info("attempts received", slog.String("job_id", jobID))
-}
+// 	log.Info("attempts received", slog.String("job_id", jobID))
+// }
 
 func (h *JobHandler) HandleCancelJob(w http.ResponseWriter, r *http.Request) {
 	op := "handler.HandleCancelJob"
@@ -284,7 +284,7 @@ func (h *JobHandler) HandleCancelJob(w http.ResponseWriter, r *http.Request) {
 			h.writeError(w, http.StatusNotFound, "job not found")
 			return
 		}
-		if errors.Is(err, storage.ErrFailedCanceletion) {
+		if errors.Is(err, storage.ErrUncancellableStatus) {
 			h.writeError(w, http.StatusConflict, "failed to cancel the job")
 			return
 		}
