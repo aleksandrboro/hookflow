@@ -76,9 +76,15 @@ func (s *Storage) SaveJob(ctx context.Context, job *domain.Job) (string, error) 
 func (s *Storage) GetJob(ctx context.Context, jobID string) (domain.Job, error) {
 	var job domain.Job
 
+	var uuid pgtype.UUID
+
+	if err := uuid.Scan(jobID); err != nil {
+		return domain.Job{}, err
+	}
+
 	if err := s.db.QueryRow(ctx,
 		"SELECT id, target_url, payload, status, run_at, attempts_count, max_attempts, created_at, updated_at FROM jobs WHERE id = $1",
-		jobID).Scan(&job.ID, &job.TargetURL, &job.Payload, &job.Status, &job.RunAt, &job.AttemptsCount, &job.MaxAttempts, &job.CreatedAt, &job.UpdatedAt); err != nil {
+		uuid).Scan(&job.ID, &job.TargetURL, &job.Payload, &job.Status, &job.RunAt, &job.AttemptsCount, &job.MaxAttempts, &job.CreatedAt, &job.UpdatedAt); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.Job{}, ErrJobNotExists
 		}
@@ -92,11 +98,13 @@ func (s *Storage) GetJob(ctx context.Context, jobID string) (domain.Job, error) 
 func (s *Storage) CancelJob(ctx context.Context, jobID string) error {
 	var job domain.Job
 
-	if _, ok := domain.AllowedToCancel[job.Status]; !ok {
-		return ErrUncancellableStatus
+	var uuid pgtype.UUID
+
+	if err := uuid.Scan(jobID); err != nil {
+		return err
 	}
 
-	if _, err := s.db.Exec(ctx, "UPDATE jobs SET status = $1 updated_at = $2 WHERE id = $3", domain.JobStatusCancelled, time.Now(), jobID); err != nil {
+	if err := s.db.QueryRow(ctx, `UPDATE jobs SET status = $1, updated_at = $2 WHERE id = $3 AND status IN ('pending', 'queued', 'retrying')`, domain.JobStatusCancelled, time.Now(), uuid).Scan(&job); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrJobNotExists
 		}
